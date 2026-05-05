@@ -1,1 +1,204 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Topsy Fashion Marketplace - Storage Layer
+  Creates S3 bucket for product images and all DynamoDB tables
 
+Resources:
+
+  # ─────────────────────────────────────────
+  # S3 Bucket for product images
+  # ─────────────────────────────────────────
+  TopsyImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: topsy-product-images
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST, DELETE]
+            AllowedOrigins: ['*']
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Users table
+  # Stores buyer and seller profiles
+  # ─────────────────────────────────────────
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Products table
+  # Stores all fashion items listed by sellers
+  # ─────────────────────────────────────────
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-products
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: sellerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: sellerId-index
+          KeySchema:
+            - AttributeName: sellerId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Orders table
+  # ─────────────────────────────────────────
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-orders
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+        - AttributeName: buyerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: buyerId-index
+          KeySchema:
+            - AttributeName: buyerId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Cart table
+  # ─────────────────────────────────────────
+  CartTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-cart
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: productId
+          KeyType: RANGE
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Reviews table
+  # ─────────────────────────────────────────
+  ReviewsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-reviews
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: reviewId
+          AttributeType: S
+        - AttributeName: vendorId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: reviewId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: vendorId-index
+          KeySchema:
+            - AttributeName: vendorId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ─────────────────────────────────────────
+  # DynamoDB — Inventory table
+  # Tracks stock levels per product
+  # ─────────────────────────────────────────
+  InventoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-inventory
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+
+# ─────────────────────────────────────────
+  # DynamoDB — Market Research table
+  # Stores anonymised survey responses for analytics
+  # ─────────────────────────────────────────
+  MarketResearchTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-market-research
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: responseId
+          AttributeType: S
+        - AttributeName: submittedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: responseId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: submittedAt-index
+          KeySchema:
+            - AttributeName: submittedAt
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+            
+Outputs:
+  ImagesBucketName:
+    Description: S3 bucket for product images
+    Value: !Ref TopsyImagesBucket
+    Export:
+      Name: TopsyImagesBucketName
+      MarketResearchTableArn:
+    Description: ARN of the Market Research table
+    Value: !GetAtt MarketResearchTable.Arn
+    Export:
+      Name: TopsyMarketResearchTableArn
+
+  UsersTableArn:
+    Description: ARN of the Users table
+    Value: !GetAtt UsersTable.Arn
+    Export:
+      Name: TopsyUsersTableArn
+
+  ProductsTableArn:
+    Description: ARN of the Products table
+    Value: !GetAtt ProductsTable.Arn
+    Export:
+      Name: TopsyProductsTableArn
+
+  OrdersTableArn:
+    Description: ARN of the Orders table
+    Value: !GetAtt OrdersTable.Arn
+    Export:
+      Name: TopsyOrdersTableArn
