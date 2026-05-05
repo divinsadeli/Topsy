@@ -1,1 +1,188 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Topsy Fashion Marketplace - Authentication Layer
+  Creates Cognito User Pool with buyer and seller groups,
+  email verification, and app client for React frontend
 
+Resources:
+
+  # ─────────────────────────────────────────
+  # Cognito User Pool
+  # The main database of all Topsy users
+  # ─────────────────────────────────────────
+  TopsyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: topsy-user-pool
+      
+      # Users sign in with their email address
+      UsernameAttributes:
+        - email
+      
+      # Automatically verify email addresses
+      AutoVerifiedAttributes:
+        - email
+
+      # Email verification message
+      EmailVerificationMessage: >
+        Welcome to Topsy! Your verification code is {####}.
+        Please enter this code to confirm your account.
+      EmailVerificationSubject: Verify your Topsy account
+
+      # Password requirements
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+
+      # Custom attributes for user profiles
+      # These store extra info about each user
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: full_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: role
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: phone_number
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: location
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+
+      # Account recovery via email
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+      # Allow users to sign themselves up
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+
+      # User pool add-ons
+      UserPoolAddOns:
+        AdvancedSecurityMode: OFF
+
+  # ─────────────────────────────────────────
+  # User Pool Client
+  # Connects your React frontend to Cognito
+  # ─────────────────────────────────────────
+  TopsyUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: topsy-web-client
+      UserPoolId: !Ref TopsyUserPool
+      GenerateSecret: false
+
+      # Token validity periods
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+      # Authentication flows allowed
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+
+      # OAuth settings for social sign-in
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+
+      # Where to redirect after login and logout
+      # Update these URLs when your frontend is deployed
+      CallbackURLs:
+        - http://localhost:3000/callback
+        - https://topsy.com/callback
+      LogoutURLs:
+        - http://localhost:3000
+        - https://topsy.com
+
+      # Prevent user existence errors leaking info
+      PreventUserExistenceErrors: ENABLED
+
+  # ─────────────────────────────────────────
+  # Cognito Domain
+  # Hosted UI for social sign-in buttons
+  # ─────────────────────────────────────────
+  TopsyUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: topsy-auth
+      UserPoolId: !Ref TopsyUserPool
+
+  # ─────────────────────────────────────────
+  # Buyer Group
+  # Users in this group see the buyer dashboard
+  # ─────────────────────────────────────────
+  BuyerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: buyers
+      Description: Registered buyers on Topsy marketplace
+      UserPoolId: !Ref TopsyUserPool
+      Precedence: 2
+
+  # ─────────────────────────────────────────
+  # Seller Group
+  # Users in this group see the seller dashboard
+  # ─────────────────────────────────────────
+  SellerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: sellers
+      Description: Verified sellers on Topsy marketplace
+      UserPoolId: !Ref TopsyUserPool
+      Precedence: 1
+
+# ─────────────────────────────────────────
+# Outputs
+# Values other templates and services need
+# ─────────────────────────────────────────
+Outputs:
+  UserPoolId:
+    Description: ID of the Cognito User Pool
+    Value: !Ref TopsyUserPool
+    Export:
+      Name: TopsyUserPoolId
+
+  UserPoolClientId:
+    Description: ID of the User Pool Client for the React app
+    Value: !Ref TopsyUserPoolClient
+    Export:
+      Name: TopsyUserPoolClientId
+
+  UserPoolArn:
+    Description: ARN of the Cognito User Pool
+    Value: !GetAtt TopsyUserPool.Arn
+    Export:
+      Name: TopsyUserPoolArn
+
+  CognitoDomain:
+    Description: Hosted UI domain for social sign-in
+    Value: !Sub https://topsy-auth.auth.${AWS::Region}.amazoncognito.com
+    Export:
+      Name: TopsyCognitoDomain
