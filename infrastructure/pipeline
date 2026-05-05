@@ -1,0 +1,294 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Topsy Fashion Marketplace - CI/CD Pipeline
+  Creates CodePipeline connected to GitHub with CodeBuild
+  for automated build and deployment of frontend and API
+
+Parameters:
+  # ─────────────────────────────────────────
+  # Parameters are values you pass in when
+  # deploying the template — like variables
+  # ─────────────────────────────────────────
+  GitHubOwner:
+    Type: String
+    Description: Your GitHub username
+    Default: divinsadeli
+
+  GitHubRepo:
+    Type: String
+    Description: Your GitHub repository name
+    Default: Topsy
+
+  GitHubBranch:
+    Type: String
+    Description: Branch to trigger the pipeline
+    Default: main
+
+  GitHubToken:
+    Type: String
+    Description: GitHub personal access token
+    NoEcho: true
+
+Resources:
+
+  # ─────────────────────────────────────────
+  # S3 Bucket for pipeline artifacts
+  # Stores compiled files between stages
+  # ─────────────────────────────────────────
+  PipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: topsy-pipeline-artifacts
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  # ─────────────────────────────────────────
+  # S3 Bucket for frontend hosting
+  # Serves your React app as a website
+  # ─────────────────────────────────────────
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: topsy-frontend
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub ${FrontendBucket.Arn}/*
+
+  # ─────────────────────────────────────────
+  # IAM Role for CodePipeline
+  # Gives CodePipeline permission to run
+  # ─────────────────────────────────────────
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: topsy-codepipeline-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: topsy-codepipeline-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketVersioning
+                Resource:
+                  - !GetAtt PipelineArtifactsBucket.Arn
+                  - !Sub ${PipelineArtifactsBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: '*'
+
+  # ─────────────────────────────────────────
+  # IAM Role for CodeBuild
+  # Gives CodeBuild permission to build and log
+  # ─────────────────────────────────────────
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: topsy-codebuild-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: topsy-codebuild-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetBucketVersioning
+                Resource:
+                  - !GetAtt PipelineArtifactsBucket.Arn
+                  - !Sub ${PipelineArtifactsBucket.Arn}/*
+                  - !GetAtt FrontendBucket.Arn
+                  - !Sub ${FrontendBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+
+  # ─────────────────────────────────────────
+  # CodeBuild Project — Frontend
+  # Builds your React app into static files
+  # ─────────────────────────────────────────
+  FrontendBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: topsy-frontend-build
+      Description: Builds the Topsy React frontend
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - Name: FRONTEND_BUCKET
+            Value: !Ref FrontendBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 18
+              commands:
+                - echo Installing frontend dependencies...
+                - cd frontend
+                - npm install
+            build:
+              commands:
+                - echo Building React app...
+                - npm run build
+            post_build:
+              commands:
+                - echo Deploying to S3...
+                - aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
+                - echo Frontend deployed successfully
+          artifacts:
+            files:
+              - '**/*'
+            base-directory: frontend/dist
+
+  # ─────────────────────────────────────────
+  # CodePipeline
+  # The main pipeline — Source, Build, Deploy
+  # ─────────────────────────────────────────
+  TopsyPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: topsy-pipeline
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactsBucket
+      Stages:
+
+        # Stage 1 — Source
+        # Pulls the latest code from GitHub
+        - Name: Source
+          Actions:
+            - Name: GitHubSource
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+                PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: SourceCode
+
+        # Stage 2 — Build
+        # Runs CodeBuild to compile the React app
+        - Name: Build
+          Actions:
+            - Name: BuildFrontend
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref FrontendBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildOutput
+
+        # Stage 3 — Deploy
+        # Copies built files to the frontend S3 bucket
+        - Name: Deploy
+          Actions:
+            - Name: DeployFrontend
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: '1'
+              Configuration:
+                BucketName: !Ref FrontendBucket
+                Extract: true
+              InputArtifacts:
+                - Name: BuildOutput
+
+Outputs:
+  PipelineName:
+    Description: Name of the CodePipeline
+    Value: !Ref TopsyPipeline
+    Export:
+      Name: TopsyPipelineName
+
+  FrontendURL:
+    Description: URL of the frontend S3 website
+    Value: !GetAtt FrontendBucket.WebsiteURL
+    Export:
+      Name: TopsyFrontendURL
+
+  ArtifactsBucketName:
+    Description: S3 bucket storing pipeline artifacts
+    Value: !Ref PipelineArtifactsBucket
+    Export:
+      Name: TopsyArtifactsBucketName
