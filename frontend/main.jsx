@@ -1,0 +1,15 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { Amplify } from 'aws-amplify'
+import App from './App'
+import awsConfig from './aws-config'
+import './index.css'
+
+// Connect React app to AWS Cognito
+Amplify.configure(awsConfig)
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
