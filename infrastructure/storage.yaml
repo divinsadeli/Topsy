@@ -5,18 +5,22 @@ Description: >
 
 Resources:
 
-  # ─────────────────────────────────────────
   # S3 Bucket for product images
-  # ─────────────────────────────────────────
   TopsyImagesBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: topsy-product-images
       CorsConfiguration:
         CorsRules:
-          - AllowedHeaders: ['*']
-            AllowedMethods: [GET, PUT, POST, DELETE]
-            AllowedOrigins: ['*']
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - '*'
             MaxAge: 3000
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
@@ -24,10 +28,7 @@ Resources:
         IgnorePublicAcls: false
         RestrictPublicBuckets: false
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Users table
-  # Stores buyer and seller profiles
-  # ─────────────────────────────────────────
+  # DynamoDB - Users table
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -40,10 +41,7 @@ Resources:
         - AttributeName: userId
           KeyType: HASH
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Products table
-  # Stores all fashion items listed by sellers
-  # ─────────────────────────────────────────
+  # DynamoDB - Products table
   ProductsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -65,9 +63,7 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Orders table
-  # ─────────────────────────────────────────
+  # DynamoDB - Orders table
   OrdersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -89,9 +85,7 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Cart table
-  # ─────────────────────────────────────────
+  # DynamoDB - Cart table
   CartTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -108,9 +102,7 @@ Resources:
         - AttributeName: productId
           KeyType: RANGE
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Reviews table
-  # ─────────────────────────────────────────
+  # DynamoDB - Reviews table
   ReviewsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -132,10 +124,7 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # ─────────────────────────────────────────
-  # DynamoDB — Inventory table
-  # Tracks stock levels per product
-  # ─────────────────────────────────────────
+  # DynamoDB - Inventory table
   InventoryTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -148,10 +137,7 @@ Resources:
         - AttributeName: productId
           KeyType: HASH
 
-# ─────────────────────────────────────────
-  # DynamoDB — Market Research table
-  # Stores anonymised survey responses for analytics
-  # ─────────────────────────────────────────
+  # DynamoDB - Market Research table
   MarketResearchTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -172,18 +158,45 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-            
+
+  # DynamoDB - Payments table
+  # Stores all Paystack transaction records
+  # Links payments to orders and buyers
+  PaymentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: topsy-payments
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+        - AttributeName: orderId
+          AttributeType: S
+        - AttributeName: buyerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: orderId-index
+          KeySchema:
+            - AttributeName: orderId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: buyerId-index
+          KeySchema:
+            - AttributeName: buyerId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
 Outputs:
   ImagesBucketName:
     Description: S3 bucket for product images
     Value: !Ref TopsyImagesBucket
     Export:
       Name: TopsyImagesBucketName
-      MarketResearchTableArn:
-    Description: ARN of the Market Research table
-    Value: !GetAtt MarketResearchTable.Arn
-    Export:
-      Name: TopsyMarketResearchTableArn
 
   UsersTableArn:
     Description: ARN of the Users table
@@ -202,3 +215,15 @@ Outputs:
     Value: !GetAtt OrdersTable.Arn
     Export:
       Name: TopsyOrdersTableArn
+
+  MarketResearchTableArn:
+    Description: ARN of the Market Research table
+    Value: !GetAtt MarketResearchTable.Arn
+    Export:
+      Name: TopsyMarketResearchTableArn
+
+  PaymentsTableArn:
+    Description: ARN of the Payments table
+    Value: !GetAtt PaymentsTable.Arn
+    Export:
+      Name: TopsyPaymentsTableArn
