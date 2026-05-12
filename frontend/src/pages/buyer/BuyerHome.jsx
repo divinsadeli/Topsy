@@ -87,4 +87,10 @@ function BuyerHome({ user }) {
       itemType: 'trouser',
       colours: ['Black', 'Navy', 'Beige'],
       sizes: ['S', 'M', 'L', 'XL'],
-      rating:
+      rating: 3.8,
+      reviewCount: 7,
+      inStock: true,
+      discount: 5
+    }
+    ]
+
