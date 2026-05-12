@@ -8,7 +8,6 @@ function BuyerProduct({ user }) {
   const [addedToCart, setAddedToCart] = useState(false)
   const [activeTab, setActiveTab] = useState('details')
 
-  // Placeholder product — will be replaced by DynamoDB data
   const product = {
     productId: '1',
     name: 'Structured Blazer Top',
@@ -47,7 +46,7 @@ function BuyerProduct({ user }) {
       reviewId: 'r3',
       buyerName: 'Adwoa K.',
       rating: 5,
-      comment: 'This is my third purchase from Abena Collections and they never disappoint. The blazer top is chef\'s kiss.',
+      comment: 'This is my third purchase from Abena Collections and they never disappoint. The blazer top is amazing.',
       date: 'March 2026'
     }
   ]
@@ -67,11 +66,9 @@ function BuyerProduct({ user }) {
 
   return (
     <div style={styles.container}>
-
-      {/* Navbar */}
       <nav style={styles.navbar}>
         <button style={styles.backButton} onClick={() => navigate('/home')}>
-          ← Back
+          Back
         </button>
         <h1 style={styles.navLogo}>TOPSY</h1>
         <button style={styles.cartButton} onClick={() => navigate('/cart')}>
@@ -79,10 +76,7 @@ function BuyerProduct({ user }) {
         </button>
       </nav>
 
-      {/* Product layout */}
       <div style={styles.productLayout}>
-
-        {/* Left — product image */}
         <div style={styles.imageSection}>
           <div style={{
             ...styles.mainImage,
@@ -98,21 +92,17 @@ function BuyerProduct({ user }) {
           </span>
         </div>
 
-        {/* Right — product info */}
         <div style={styles.infoSection}>
-
-          {/* Seller info */}
           <div style={styles.sellerRow}>
             <span style={styles.sellerName}>{product.sellerName}</span>
             {product.sellerVerified && (
-              <span style={styles.verifiedBadge}>✓ Verified Seller</span>
+              <span style={styles.verifiedBadge}>Verified Seller</span>
             )}
             <span style={styles.sellerRating}>★ {product.sellerRating}</span>
           </div>
 
           <h2 style={styles.productName}>{product.name}</h2>
 
-          {/* Price */}
           <div style={styles.priceRow}>
             <span style={styles.price}>
               GHC {product.discount > 0
@@ -124,7 +114,6 @@ function BuyerProduct({ user }) {
             )}
           </div>
 
-          {/* Rating */}
           <div style={styles.ratingRow}>
             {[1,2,3,4,5].map(star => (
               <span
@@ -140,7 +129,6 @@ function BuyerProduct({ user }) {
             </span>
           </div>
 
-          {/* Colour selection */}
           <div style={styles.selectionSection}>
             <p style={styles.selectionLabel}>
               Colour: <span style={styles.selectionValue}>
@@ -164,7 +152,6 @@ function BuyerProduct({ user }) {
             </div>
           </div>
 
-          {/* Size selection */}
           <div style={styles.selectionSection}>
             <p style={styles.selectionLabel}>
               Size: <span style={styles.selectionValue}>
@@ -189,7 +176,6 @@ function BuyerProduct({ user }) {
             </div>
           </div>
 
-          {/* Add to cart */}
           <button
             style={{
               ...styles.addToCartButton,
@@ -204,9 +190,9 @@ function BuyerProduct({ user }) {
             disabled={!selectedSize || !selectedColour}
           >
             {addedToCart
-              ? '✓ Added to Cart'
+              ? 'Added to Cart'
               : (!selectedSize || !selectedColour)
-                ? 'Select Size & Colour'
+                ? 'Select Size and Colour'
                 : 'Add to Cart'}
           </button>
 
@@ -218,48 +204,23 @@ function BuyerProduct({ user }) {
         </div>
       </div>
 
-      {/* Tabs — details and reviews */}
       <div style={styles.tabsSection}>
         <div style={styles.tabHeaders}>
-          <button
-            style={{
-              ...styles.tabButton,
-              borderBottom: activeTab === 'details'
-                ? '2px solid #1a1a1a'
-                : '2px solid transparent',
-              fontWeight: activeTab === 'details' ? '600' : '400'
-            }}
-            onClick={() => setActiveTab('details')}
-          >
-            Product Details
-          </button>
-          <button
-            style={{
-              ...styles.tabButton,
-              borderBottom: activeTab === 'reviews'
-                ? '2px solid #1a1a1a'
-                : '2px solid transparent',
-              fontWeight: activeTab === 'reviews' ? '600' : '400'
-            }}
-            onClick={() => setActiveTab('reviews')}
-          >
-            Reviews ({product.reviewCount})
-          </button>
-          <button
-            style={{
-              ...styles.tabButton,
-              borderBottom: activeTab === 'seller'
-                ? '2px solid #1a1a1a'
-                : '2px solid transparent',
-              fontWeight: activeTab === 'seller' ? '600' : '400'
-            }}
-            onClick={() => setActiveTab('seller')}
-          >
-            About the Seller
-          </button>
+          {['details', 'reviews', 'seller'].map(tab => (
+            <button
+              key={tab}
+              style={{
+                ...styles.tabButton,
+                borderBottom: activeTab === tab ? '2px solid #1a1a1a' : '2px solid transparent',
+                fontWeight: activeTab === tab ? '600' : '400'
+              }}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'details' ? 'Product Details' : tab === 'reviews' ? 'Reviews (' + product.reviewCount + ')' : 'About the Seller'}
+            </button>
+          ))}
         </div>
 
-        {/* Details tab */}
         {activeTab === 'details' && (
           <div style={styles.tabContent}>
             <p style={styles.description}>{product.description}</p>
@@ -284,7 +245,6 @@ function BuyerProduct({ user }) {
           </div>
         )}
 
-        {/* Reviews tab */}
         {activeTab === 'reviews' && (
           <div style={styles.tabContent}>
             <div style={styles.reviewsSummary}>
@@ -298,9 +258,7 @@ function BuyerProduct({ user }) {
                     }}>★</span>
                   ))}
                 </div>
-                <p style={styles.totalReviews}>
-                  Based on {product.reviewCount} reviews
-                </p>
+                <p style={styles.totalReviews}>Based on {product.reviewCount} reviews</p>
               </div>
             </div>
             <div style={styles.reviewsList}>
@@ -325,7 +283,6 @@ function BuyerProduct({ user }) {
           </div>
         )}
 
-        {/* Seller tab */}
         {activeTab === 'seller' && (
           <div style={styles.tabContent}>
             <div style={styles.sellerCard}>
@@ -337,7 +294,7 @@ function BuyerProduct({ user }) {
                   <h3 style={styles.sellerCardName}>{product.sellerName}</h3>
                   <div style={styles.sellerCardMeta}>
                     {product.sellerVerified && (
-                      <span style={styles.verifiedBadge}>✓ Verified Seller</span>
+                      <span style={styles.verifiedBadge}>Verified Seller</span>
                     )}
                     <span style={styles.sellerRating}>★ {product.sellerRating}</span>
                   </div>
@@ -520,4 +477,190 @@ const styles = {
   },
   sizeOptions: {
     display: 'flex',
-    gap: '
+    gap: '0.5rem',
+    flexWrap: 'wrap'
+  },
+  sizeButton: {
+    width: '48px',
+    height: '48px',
+    border: '1.5px solid',
+    borderRadius: '6px',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '500'
+  },
+  addToCartButton: {
+    padding: '1rem',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    width: '100%',
+    marginTop: '0.5rem',
+    transition: 'background-color 0.3s'
+  },
+  selectionHint: {
+    fontSize: '0.8rem',
+    color: '#6b6b6b',
+    textAlign: 'center'
+  },
+  tabsSection: {
+    maxWidth: '1100px',
+    margin: '0 auto',
+    padding: '0 2rem 3rem'
+  },
+  tabHeaders: {
+    display: 'flex',
+    borderBottom: '1px solid #e0e0e0',
+    marginBottom: '2rem'
+  },
+  tabButton: {
+    padding: '1rem 1.5rem',
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    fontFamily: 'Inter, sans-serif',
+    color: '#1a1a1a'
+  },
+  tabContent: {
+    padding: '0.5rem 0'
+  },
+  description: {
+    fontSize: '0.95rem',
+    color: '#6b6b6b',
+    lineHeight: '1.8',
+    marginBottom: '1.5rem'
+  },
+  detailsGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem'
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    padding: '1rem',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px'
+  },
+  detailLabel: {
+    fontSize: '0.8rem',
+    color: '#6b6b6b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  detailValue: {
+    fontSize: '0.95rem',
+    color: '#1a1a1a',
+    fontWeight: '500',
+    textTransform: 'capitalize'
+  },
+  reviewsSummary: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.5rem',
+    marginBottom: '2rem',
+    padding: '1.5rem',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px'
+  },
+  bigRating: {
+    fontSize: '3rem',
+    fontWeight: '700',
+    color: '#1a1a1a',
+    fontFamily: 'Playfair Display, serif'
+  },
+  starsRow: {
+    display: 'flex',
+    gap: '0.1rem',
+    marginBottom: '0.25rem'
+  },
+  totalReviews: {
+    fontSize: '0.85rem',
+    color: '#6b6b6b'
+  },
+  reviewsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  },
+  reviewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: '10px',
+    padding: '1.25rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem'
+  },
+  reviewHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  reviewerName: {
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    color: '#1a1a1a'
+  },
+  reviewDate: {
+    fontSize: '0.8rem',
+    color: '#6b6b6b'
+  },
+  reviewStars: {
+    display: 'flex',
+    gap: '0.1rem'
+  },
+  reviewComment: {
+    fontSize: '0.9rem',
+    color: '#6b6b6b',
+    lineHeight: '1.6'
+  },
+  sellerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  },
+  sellerCardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  sellerAvatar: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    backgroundColor: '#1a1a1a',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.3rem',
+    fontFamily: 'Playfair Display, serif'
+  },
+  sellerCardName: {
+    fontSize: '1.1rem',
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: '0.25rem'
+  },
+  sellerCardMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem'
+  },
+  sellerDescription: {
+    fontSize: '0.9rem',
+    color: '#6b6b6b',
+    lineHeight: '1.6'
+  }
+}
+
+export default BuyerProduct
