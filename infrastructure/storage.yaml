@@ -29,29 +29,29 @@ Resources:
         RestrictPublicBuckets: false
 
 # S3 Bucket for frontend hosting
-    TopsyFrontendBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: topsy-frontend
-        WebsiteConfiguration:
-          IndexDocument: index.html
-          ErrorDocument: index.html
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls: false
-          BlockPublicPolicy: false
-          IgnorePublicAcls: false
-          RestrictPublicBuckets: false
+  TopsyFrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: topsy-frontend
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
 
-    TopsyFrontendBucketPolicy:
-      Type: AWS::S3::BucketPolicy
-      Properties:
-        Bucket: !Ref TopsyFrontendBucket
-        PolicyDocument:
-          Statement:
-            - Effect: Allow
-              Principal: '*'
-              Action: s3:GetObject
-              Resource: !Sub '${TopsyFrontendBucket.Arn}/*'
+  TopsyFrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TopsyFrontendBucket
+      PolicyDocument:
+        Statement:
+           - Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub '${TopsyFrontendBucket.Arn}/*'
               
   # DynamoDB - Users table
   UsersTable:
