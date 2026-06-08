@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Topsy Fashion Marketplace - CDN Layer
+  CloudFront distribution for the React frontend hosted on S3
+
+Resources:
+
+  # CloudFront Origin Access Control
+  # Allows CloudFront to access the S3 bucket securely
+  TopsyFrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: topsy-frontend-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distribution
+  TopsyFrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Topsy Fashion Marketplace Frontend
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+        Origins:
+          - Id: TopsyS3Origin
+            DomainName: !Sub 'topsy-frontend.s3.${AWS::Region}.amazonaws.com'
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt TopsyFrontendOAC.Id
+
+        DefaultCacheBehavior:
+          TargetOriginId: TopsyS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+
+        # Handle React client-side routing
+        # Any 403/404 from S3 gets redirected to index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+
+  # Update S3 bucket policy to allow CloudFront OAC access
+  TopsyFrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: topsy-frontend
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontAccess
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: arn:aws:s3:::topsy-frontend/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${TopsyFrontendDistribution}'
+
+Outputs:
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref TopsyFrontendDistribution
+    Export:
+      Name: TopsyCloudFrontDistributionId
+
+  CloudFrontURL:
+    Description: CloudFront URL for the Topsy frontend
+    Value: !Sub 'https://${TopsyFrontendDistribution.DomainName}'
+    Export:
+      Name: TopsyCloudFrontURL
