@@ -191,6 +191,8 @@ Resources:
         EnvironmentVariables:
           - Name: FRONTEND_BUCKET
             Value: !Ref FrontendBucket
+          - Name: CLOUDFRONT_DISTRIBUTION_ID
+            Value: !ImportValue TopsyCloudFrontDistributionId
       Source:
         Type: CODEPIPELINE
         BuildSpec: |
@@ -211,6 +213,8 @@ Resources:
               commands:
                 - echo Deploying to S3...
                 - aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
+                - echo Invalidating CloudFront cache...
+                - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
                 - echo Frontend deployed successfully
           artifacts:
             files:
