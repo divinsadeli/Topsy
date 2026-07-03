@@ -1,0 +1,432 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Topsy Fashion Marketplace - API Layer
+  API Gateway + Lambda functions for products and cart
+
+Resources:
+
+  # IAM Role for Lambda functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: topsy-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: topsy-lambda-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-products'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-products/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-cart'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-cart/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-reviews'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/topsy-reviews/index/*'
+
+  # Lambda Functions
+
+  GetProductsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-get-products
+      Runtime: nodejs18.x
+      Handler: getProducts.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  GetProductFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-get-product
+      Runtime: nodejs18.x
+      Handler: getProduct.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: topsy-products
+          REVIEWS_TABLE: topsy-reviews
+      Timeout: 10
+
+  GetSellerProductsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-get-seller-products
+      Runtime: nodejs18.x
+      Handler: getSellerProducts.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  CreateProductFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-create-product
+      Runtime: nodejs18.x
+      Handler: createProduct.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  UpdateProductFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-update-product
+      Runtime: nodejs18.x
+      Handler: updateProduct.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  GetCartFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-get-cart
+      Runtime: nodejs18.x
+      Handler: getCart.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          CART_TABLE: topsy-cart
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  ManageCartFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: topsy-manage-cart
+      Runtime: nodejs18.x
+      Handler: manageCart.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder' })
+      Environment:
+        Variables:
+          CART_TABLE: topsy-cart
+          PRODUCTS_TABLE: topsy-products
+      Timeout: 10
+
+  # API Gateway
+  TopsyApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: topsy-api
+      Description: Topsy Fashion Marketplace API
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # /products resource
+  ProductsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !GetAtt TopsyApi.RootResourceId
+      PathPart: products
+
+  # /products/{productId} resource
+  ProductResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !Ref ProductsResource
+      PathPart: '{productId}'
+
+  # /products/seller resource
+  SellerResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !Ref ProductsResource
+      PathPart: seller
+
+  # /products/seller/{sellerId} resource
+  SellerIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !Ref SellerResource
+      PathPart: '{sellerId}'
+
+  # /cart resource
+  CartResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !GetAtt TopsyApi.RootResourceId
+      PathPart: cart
+
+  # /cart/{cartItemId} resource
+  CartItemResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !Ref CartResource
+      PathPart: '{cartItemId}'
+
+  # /cart/{userId} resource
+  CartUserResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ParentId: !Ref CartResource
+      PathPart: '{userId}'
+
+  # GET /products
+  GetProductsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref ProductsResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetProductsFunction.Arn}/invocations'
+
+  # POST /products
+  CreateProductMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref ProductsResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateProductFunction.Arn}/invocations'
+
+  # GET /products/{productId}
+  GetProductMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref ProductResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetProductFunction.Arn}/invocations'
+
+  # PUT /products/{productId}
+  UpdateProductMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref ProductResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateProductFunction.Arn}/invocations'
+
+  # GET /products/seller/{sellerId}
+  GetSellerProductsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref SellerIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetSellerProductsFunction.Arn}/invocations'
+
+  # GET /cart/{userId}
+  GetCartMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref CartUserResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCartFunction.Arn}/invocations'
+
+  # POST /cart
+  AddToCartMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref CartResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ManageCartFunction.Arn}/invocations'
+
+  # PUT /cart/{cartItemId}
+  UpdateCartMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref CartItemResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ManageCartFunction.Arn}/invocations'
+
+  # DELETE /cart/{cartItemId}
+  DeleteCartMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref TopsyApi
+      ResourceId: !Ref CartItemResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ManageCartFunction.Arn}/invocations'
+
+  # API Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetProductsMethod
+      - CreateProductMethod
+      - GetProductMethod
+      - UpdateProductMethod
+      - GetSellerProductsMethod
+      - GetCartMethod
+      - AddToCartMethod
+      - UpdateCartMethod
+      - DeleteCartMethod
+    Properties:
+      RestApiId: !Ref TopsyApi
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref TopsyApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+
+  # Lambda permissions for API Gateway
+  GetProductsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GetProductsFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  GetProductPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GetProductFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  GetSellerProductsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GetSellerProductsFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  CreateProductPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt CreateProductFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  UpdateProductPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt UpdateProductFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  GetCartPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt GetCartFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+  ManageCartPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ManageCartFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TopsyApi}/*'
+
+Outputs:
+
+  ApiUrl:
+    Description: Topsy API Gateway URL
+    Value: !Sub 'https://${TopsyApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Export:
+      Name: TopsyApiUrl
+
+  ApiId:
+    Description: API Gateway ID
+    Value: !Ref TopsyApi
+    Export:
+      Name: TopsyApiId
