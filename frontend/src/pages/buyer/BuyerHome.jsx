@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signOut } from 'aws-amplify/auth'
 import { useNavigate } from 'react-router-dom'
+
+const API_URL = 'https://g71wjkt5pd.execute-api.eu-north-1.amazonaws.com/prod'
 
 function BuyerHome({ user }) {
   const [activeCategory, setActiveCategory] = useState('all')
   const [activeType, setActiveType] = useState('all')
   const [cartCount, setCartCount] = useState(0)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const navigate = useNavigate()
 
   const categories = [
@@ -25,88 +30,27 @@ function BuyerHome({ user }) {
     { id: 'coord-set', label: 'Co-ord Sets' }
   ]
 
-  const placeholderProducts = [
-    {
-      productId: '1',
-      name: 'Structured Blazer Top',
-      price: 120,
-      category: 'in-office',
-      itemType: 'top',
-      colours: ['Black', 'Nude'],
-      sizes: ['S', 'M', 'L', 'XL'],
-      rating: 4.5,
-      reviewCount: 12,
-      inStock: true,
-      discount: 0
-    },
-    {
-      productId: '2',
-      name: 'Flowy Wrap Dress',
-      price: 180,
-      category: 'out-of-office',
-      itemType: 'dress',
-      colours: ['Rose', 'White'],
-      sizes: ['XS', 'S', 'M', 'L'],
-      rating: 4.8,
-      reviewCount: 24,
-      inStock: true,
-      discount: 10
-    },
-    {
-      productId: '3',
-      name: 'Basic Crop Top',
-      price: 45,
-      category: 'casual',
-      itemType: 'top',
-      colours: ['White', 'Black', 'Nude'],
-      sizes: ['XS', 'S', 'M', 'L', 'XL'],
-      rating: 4.2,
-      reviewCount: 8,
-      inStock: true,
-      discount: 0
-    },
-    {
-      productId: '4',
-      name: 'Cut-Out Bodycon Top',
-      price: 95,
-      category: 'spicy',
-      itemType: 'top',
-      colours: ['Black', 'Red'],
-      sizes: ['S', 'M', 'L'],
-      rating: 4.6,
-      reviewCount: 19,
-      inStock: true,
-      discount: 15
-    },
-    {
-      productId: '5',
-      name: 'High-Waist Tailored Trousers',
-      price: 150,
-      category: 'in-office',
-      itemType: 'trouser',
-      colours: ['Black', 'Navy', 'Beige'],
-      sizes: ['S', 'M', 'L', 'XL'],
-      rating: 4.7,
-      reviewCount: 31,
-      inStock: true,
-      discount: 0
-    },
-    {
-      productId: '6',
-      name: 'Linen Co-ord Set',
-      price: 220,
-      category: 'casual',
-      itemType: 'coord-set',
-      colours: ['White', 'Sage'],
-      sizes: ['XS', 'S', 'M', 'L'],
-      rating: 4.9,
-      reviewCount: 44,
-      inStock: false,
-      discount: 0
-    }
-  ]
+  useEffect(() => {
+    fetchProducts()
+  }, [])
 
-  const filteredProducts = placeholderProducts.filter(p => {
+  async function fetchProducts() {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch(`${API_URL}/products`)
+      if (!response.ok) throw new Error('Failed to fetch products')
+      const data = await response.json()
+      setProducts(data.products || [])
+    } catch (err) {
+      console.error('Error fetching products:', err)
+      setError('Failed to load products. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredProducts = products.filter(p => {
     const categoryMatch = activeCategory === 'all' || p.category === activeCategory
     const typeMatch = activeType === 'all' || p.itemType === activeType
     return categoryMatch && typeMatch
@@ -193,68 +137,83 @@ function BuyerHome({ user }) {
       <div style={styles.productsSection}>
         <div style={styles.sectionHeader}>
           <h3 style={styles.sectionTitle}>
-            {activeCategory === 'all' ? 'All Items' : categories.find(c => c.id === activeCategory).label}
+            {activeCategory === 'all' ? 'All Items' : categories.find(c => c.id === activeCategory)?.label}
           </h3>
           <p style={styles.productCount}>{filteredProducts.length} items</p>
         </div>
 
-        <div style={styles.productsGrid}>
-          {filteredProducts.map(product => (
-            <div
-              key={product.productId}
-              style={styles.productCard}
-              onClick={() => navigate('/product/' + product.productId)}
-            >
-              <div style={styles.productImageContainer}>
-                <div style={{
-                  ...styles.productImage,
-                  backgroundColor: categoryColors[product.category] || '#e8d5c4'
-                }}>
-                  <span style={styles.productImageText}>
-                    {product.name.charAt(0)}
-                  </span>
-                </div>
-                {product.discount > 0 && (
-                  <span style={styles.discountBadge}>-{product.discount}%</span>
-                )}
-                {!product.inStock && (
-                  <div style={styles.outOfStockOverlay}>
-                    <span>Out of Stock</span>
-                  </div>
-                )}
-                <span style={{
-                  ...styles.categoryBadge,
-                  backgroundColor: categoryColors[product.category] || '#1a1a1a'
-                }}>
-                  {product.category}
-                </span>
-              </div>
+        {loading && (
+          <div style={styles.loadingState}>
+            <p style={styles.loadingText}>Loading products...</p>
+          </div>
+        )}
 
-              <div style={styles.productDetails}>
-                <p style={styles.productName}>{product.name}</p>
-                <div style={styles.productPriceRow}>
-                  <span style={styles.productPrice}>
-                    GHC {product.discount > 0
-                      ? Math.round(product.price * (1 - product.discount / 100))
-                      : product.price}
-                  </span>
+        {error && (
+          <div style={styles.errorState}>
+            <p style={styles.errorText}>{error}</p>
+            <button style={styles.retryButton} onClick={fetchProducts}>Try Again</button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div style={styles.productsGrid}>
+            {filteredProducts.map(product => (
+              <div
+                key={product.productId}
+                style={styles.productCard}
+                onClick={() => navigate('/product/' + product.productId)}
+              >
+                <div style={styles.productImageContainer}>
+                  <div style={{
+                    ...styles.productImage,
+                    backgroundColor: categoryColors[product.category] || '#e8d5c4'
+                  }}>
+                    <span style={styles.productImageText}>
+                      {product.name.charAt(0)}
+                    </span>
+                  </div>
                   {product.discount > 0 && (
-                    <span style={styles.originalPrice}>GHC {product.price}</span>
+                    <span style={styles.discountBadge}>-{product.discount}%</span>
                   )}
+                  {!product.inStock && (
+                    <div style={styles.outOfStockOverlay}>
+                      <span>Out of Stock</span>
+                    </div>
+                  )}
+                  <span style={{
+                    ...styles.categoryBadge,
+                    backgroundColor: categoryColors[product.category] || '#1a1a1a'
+                  }}>
+                    {product.category}
+                  </span>
                 </div>
-                <div style={styles.productMeta}>
-                  <span style={styles.rating}>★ {product.rating}</span>
-                  <span style={styles.reviewCount}>({product.reviewCount})</span>
-                </div>
-                <div style={styles.colourDots}>
-                  {product.colours.slice(0, 4).map(colour => (
-                    <span key={colour} style={styles.colourDot} title={colour} />
-                  ))}
+
+                <div style={styles.productDetails}>
+                  <p style={styles.productName}>{product.name}</p>
+                  <div style={styles.productPriceRow}>
+                    <span style={styles.productPrice}>
+                      GHC {product.discount > 0
+                        ? Math.round(product.price * (1 - product.discount / 100))
+                        : product.price}
+                    </span>
+                    {product.discount > 0 && (
+                      <span style={styles.originalPrice}>GHC {product.price}</span>
+                    )}
+                  </div>
+                  <div style={styles.productMeta}>
+                    <span style={styles.rating}>★ {product.rating}</span>
+                    <span style={styles.reviewCount}>({product.reviewCount})</span>
+                  </div>
+                  <div style={styles.colourDots}>
+                    {(product.colours || []).slice(0, 4).map(colour => (
+                      <span key={colour} style={styles.colourDot} title={colour} />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -417,6 +376,35 @@ const styles = {
   productCount: {
     color: '#6b6b6b',
     fontSize: '0.9rem'
+  },
+  loadingState: {
+    textAlign: 'center',
+    padding: '4rem'
+  },
+  loadingText: {
+    color: '#6b6b6b',
+    fontSize: '1rem'
+  },
+  errorState: {
+    textAlign: 'center',
+    padding: '4rem',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: '1rem'
+  },
+  retryButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#1a1a1a',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    cursor: 'pointer'
   },
   productsGrid: {
     display: 'grid',
