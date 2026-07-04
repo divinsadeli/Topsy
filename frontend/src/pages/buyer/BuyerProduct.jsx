@@ -1,55 +1,19 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+
+const API_URL = 'https://g71wjkt5pd.execute-api.eu-north-1.amazonaws.com/prod'
 
 function BuyerProduct({ user }) {
   const navigate = useNavigate()
+  const { productId } = useParams()
   const [selectedSize, setSelectedSize] = useState(null)
   const [selectedColour, setSelectedColour] = useState(null)
   const [addedToCart, setAddedToCart] = useState(false)
   const [activeTab, setActiveTab] = useState('details')
-
-  const product = {
-    productId: '1',
-    name: 'Structured Blazer Top',
-    price: 120,
-    category: 'in-office',
-    itemType: 'top',
-    description: 'A polished structured blazer top perfect for the office. Features clean lines, a fitted silhouette and premium fabric that holds its shape all day. Pairs beautifully with high-waist trousers or a midi skirt.',
-    colours: ['Black', 'Nude', 'Navy'],
-    sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    rating: 4.5,
-    reviewCount: 12,
-    inStock: true,
-    discount: 0,
-    sellerId: 'seller1',
-    sellerName: 'Abena Collections',
-    sellerRating: 4.8,
-    sellerVerified: true
-  }
-
-  const reviews = [
-    {
-      reviewId: 'r1',
-      buyerName: 'Akosua M.',
-      rating: 5,
-      comment: 'Absolutely love this top! The quality is amazing and it fits perfectly. I wore it to a board meeting and got so many compliments.',
-      date: 'April 2026'
-    },
-    {
-      reviewId: 'r2',
-      buyerName: 'Efua A.',
-      rating: 4,
-      comment: 'Really nice top, great quality fabric. Runs slightly small so I suggest sizing up. Delivery was fast too.',
-      date: 'March 2026'
-    },
-    {
-      reviewId: 'r3',
-      buyerName: 'Adwoa K.',
-      rating: 5,
-      comment: 'This is my third purchase from Abena Collections and they never disappoint. The blazer top is amazing.',
-      date: 'March 2026'
-    }
-  ]
+  const [product, setProduct] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const categoryColors = {
     'in-office': '#2c3e50',
@@ -58,10 +22,68 @@ function BuyerProduct({ user }) {
     'spicy': '#e74c3c'
   }
 
-  function handleAddToCart() {
+  useEffect(() => {
+    fetchProduct()
+  }, [productId])
+
+  async function fetchProduct() {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch(`${API_URL}/products/${productId}`)
+      if (!response.ok) throw new Error('Product not found')
+      const data = await response.json()
+      setProduct(data.product)
+      setReviews(data.reviews || [])
+    } catch (err) {
+      console.error('Error fetching product:', err)
+      setError('Failed to load product. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAddToCart() {
     if (!selectedSize || !selectedColour) return
-    setAddedToCart(true)
-    setTimeout(() => setAddedToCart(false), 2000)
+    if (!user) return navigate('/')
+
+    try {
+      const response = await fetch(`${API_URL}/cart/${user.userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.userId,
+          productId: product.productId,
+          selectedSize,
+          selectedColour,
+          quantity: 1
+        })
+      })
+      if (!response.ok) throw new Error('Failed to add to cart')
+      setAddedToCart(true)
+      setTimeout(() => setAddedToCart(false), 2000)
+    } catch (err) {
+      console.error('Error adding to cart:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={styles.centerScreen}>
+        <p style={styles.loadingText}>Loading product...</p>
+      </div>
+    )
+  }
+
+  if (error || !product) {
+    return (
+      <div style={styles.centerScreen}>
+        <p style={styles.errorText}>{error || 'Product not found'}</p>
+        <button style={styles.backBtn} onClick={() => navigate('/home')}>
+          Back to Shop
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -116,13 +138,10 @@ function BuyerProduct({ user }) {
 
           <div style={styles.ratingRow}>
             {[1,2,3,4,5].map(star => (
-              <span
-                key={star}
-                style={{
-                  color: star <= Math.round(product.rating) ? '#c9647a' : '#e0e0e0',
-                  fontSize: '1.1rem'
-                }}
-              >★</span>
+              <span key={star} style={{
+                color: star <= Math.round(product.rating) ? '#c9647a' : '#e0e0e0',
+                fontSize: '1.1rem'
+              }}>★</span>
             ))}
             <span style={styles.ratingText}>
               {product.rating} ({product.reviewCount} reviews)
@@ -136,7 +155,7 @@ function BuyerProduct({ user }) {
               </span>
             </p>
             <div style={styles.colourOptions}>
-              {product.colours.map(colour => (
+              {(product.colours || []).map(colour => (
                 <button
                   key={colour}
                   style={{
@@ -159,7 +178,7 @@ function BuyerProduct({ user }) {
               </span>
             </p>
             <div style={styles.sizeOptions}>
-              {product.sizes.map(size => (
+              {(product.sizes || []).map(size => (
                 <button
                   key={size}
                   style={{
@@ -190,7 +209,7 @@ function BuyerProduct({ user }) {
             disabled={!selectedSize || !selectedColour}
           >
             {addedToCart
-              ? 'Added to Cart'
+              ? 'Added to Cart ✓'
               : (!selectedSize || !selectedColour)
                 ? 'Select Size and Colour'
                 : 'Add to Cart'}
@@ -216,7 +235,9 @@ function BuyerProduct({ user }) {
               }}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'details' ? 'Product Details' : tab === 'reviews' ? 'Reviews (' + product.reviewCount + ')' : 'About the Seller'}
+              {tab === 'details' ? 'Product Details'
+                : tab === 'reviews' ? `Reviews (${product.reviewCount})`
+                : 'About the Seller'}
             </button>
           ))}
         </div>
@@ -235,11 +256,11 @@ function BuyerProduct({ user }) {
               </div>
               <div style={styles.detailItem}>
                 <span style={styles.detailLabel}>Available Sizes</span>
-                <span style={styles.detailValue}>{product.sizes.join(', ')}</span>
+                <span style={styles.detailValue}>{(product.sizes || []).join(', ')}</span>
               </div>
               <div style={styles.detailItem}>
                 <span style={styles.detailLabel}>Available Colours</span>
-                <span style={styles.detailValue}>{product.colours.join(', ')}</span>
+                <span style={styles.detailValue}>{(product.colours || []).join(', ')}</span>
               </div>
             </div>
           </div>
@@ -261,25 +282,29 @@ function BuyerProduct({ user }) {
                 <p style={styles.totalReviews}>Based on {product.reviewCount} reviews</p>
               </div>
             </div>
-            <div style={styles.reviewsList}>
-              {reviews.map(review => (
-                <div key={review.reviewId} style={styles.reviewCard}>
-                  <div style={styles.reviewHeader}>
-                    <span style={styles.reviewerName}>{review.buyerName}</span>
-                    <span style={styles.reviewDate}>{review.date}</span>
+            {reviews.length > 0 ? (
+              <div style={styles.reviewsList}>
+                {reviews.map(review => (
+                  <div key={review.reviewId} style={styles.reviewCard}>
+                    <div style={styles.reviewHeader}>
+                      <span style={styles.reviewerName}>{review.buyerName}</span>
+                      <span style={styles.reviewDate}>{review.date}</span>
+                    </div>
+                    <div style={styles.reviewStars}>
+                      {[1,2,3,4,5].map(star => (
+                        <span key={star} style={{
+                          color: star <= review.rating ? '#c9647a' : '#e0e0e0',
+                          fontSize: '0.9rem'
+                        }}>★</span>
+                      ))}
+                    </div>
+                    <p style={styles.reviewComment}>{review.comment}</p>
                   </div>
-                  <div style={styles.reviewStars}>
-                    {[1,2,3,4,5].map(star => (
-                      <span key={star} style={{
-                        color: star <= review.rating ? '#c9647a' : '#e0e0e0',
-                        fontSize: '0.9rem'
-                      }}>★</span>
-                    ))}
-                  </div>
-                  <p style={styles.reviewComment}>{review.comment}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p style={styles.noReviews}>No reviews yet for this product.</p>
+            )}
           </div>
         )}
 
@@ -313,354 +338,67 @@ function BuyerProduct({ user }) {
 }
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#faf7f4',
-    fontFamily: 'Inter, sans-serif'
-  },
-  navbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '1rem 2rem',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #f0f0f0',
-    position: 'sticky',
-    top: 0,
-    zIndex: 100
-  },
-  backButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    color: '#6b6b6b'
-  },
-  navLogo: {
-    fontFamily: 'Playfair Display, serif',
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    letterSpacing: '0.2em',
-    color: '#1a1a1a'
-  },
-  cartButton: {
-    padding: '0.5rem 1.2rem',
-    backgroundColor: '#1a1a1a',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '20px',
-    fontSize: '0.85rem',
-    cursor: 'pointer'
-  },
-  productLayout: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '3rem',
-    padding: '2rem',
-    maxWidth: '1100px',
-    margin: '0 auto'
-  },
-  imageSection: {
-    position: 'relative'
-  },
-  mainImage: {
-    width: '100%',
-    paddingTop: '120%',
-    borderRadius: '12px',
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  imageText: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    fontSize: '5rem',
-    color: 'rgba(255,255,255,0.4)',
-    fontFamily: 'Playfair Display, serif'
-  },
-  categoryBadge: {
-    position: 'absolute',
-    bottom: '15px',
-    left: '15px',
-    color: '#ffffff',
-    padding: '0.3rem 0.8rem',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    textTransform: 'capitalize'
-  },
-  infoSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem'
-  },
-  sellerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  sellerName: {
-    fontSize: '0.9rem',
-    color: '#6b6b6b'
-  },
-  verifiedBadge: {
-    backgroundColor: '#e8f5e9',
-    color: '#27ae60',
-    padding: '0.2rem 0.6rem',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    fontWeight: '600'
-  },
-  sellerRating: {
-    fontSize: '0.85rem',
-    color: '#c9647a'
-  },
-  productName: {
-    fontFamily: 'Playfair Display, serif',
-    fontSize: '2rem',
-    color: '#1a1a1a',
-    lineHeight: '1.2'
-  },
-  priceRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  price: {
-    fontSize: '1.6rem',
-    fontWeight: '700',
-    color: '#1a1a1a'
-  },
-  originalPrice: {
-    fontSize: '1.1rem',
-    color: '#6b6b6b',
-    textDecoration: 'line-through'
-  },
-  ratingRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem'
-  },
-  ratingText: {
-    fontSize: '0.85rem',
-    color: '#6b6b6b',
-    marginLeft: '0.5rem'
-  },
-  selectionSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem'
-  },
-  selectionLabel: {
-    fontSize: '0.9rem',
-    color: '#6b6b6b',
-    fontWeight: '500'
-  },
-  selectionValue: {
-    color: '#1a1a1a',
-    fontWeight: '600'
-  },
-  colourOptions: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap'
-  },
-  colourButton: {
-    padding: '0.5rem 1rem',
-    border: '1.5px solid',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif'
-  },
-  sizeOptions: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap'
-  },
-  sizeButton: {
-    width: '48px',
-    height: '48px',
-    border: '1.5px solid',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-    fontWeight: '500'
-  },
-  addToCartButton: {
-    padding: '1rem',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    width: '100%',
-    marginTop: '0.5rem',
-    transition: 'background-color 0.3s'
-  },
-  selectionHint: {
-    fontSize: '0.8rem',
-    color: '#6b6b6b',
-    textAlign: 'center'
-  },
-  tabsSection: {
-    maxWidth: '1100px',
-    margin: '0 auto',
-    padding: '0 2rem 3rem'
-  },
-  tabHeaders: {
-    display: 'flex',
-    borderBottom: '1px solid #e0e0e0',
-    marginBottom: '2rem'
-  },
-  tabButton: {
-    padding: '1rem 1.5rem',
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
-    color: '#1a1a1a'
-  },
-  tabContent: {
-    padding: '0.5rem 0'
-  },
-  description: {
-    fontSize: '0.95rem',
-    color: '#6b6b6b',
-    lineHeight: '1.8',
-    marginBottom: '1.5rem'
-  },
-  detailsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem'
-  },
-  detailItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    padding: '1rem',
-    backgroundColor: '#ffffff',
-    borderRadius: '8px'
-  },
-  detailLabel: {
-    fontSize: '0.8rem',
-    color: '#6b6b6b',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  detailValue: {
-    fontSize: '0.95rem',
-    color: '#1a1a1a',
-    fontWeight: '500',
-    textTransform: 'capitalize'
-  },
-  reviewsSummary: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1.5rem',
-    marginBottom: '2rem',
-    padding: '1.5rem',
-    backgroundColor: '#ffffff',
-    borderRadius: '12px'
-  },
-  bigRating: {
-    fontSize: '3rem',
-    fontWeight: '700',
-    color: '#1a1a1a',
-    fontFamily: 'Playfair Display, serif'
-  },
-  starsRow: {
-    display: 'flex',
-    gap: '0.1rem',
-    marginBottom: '0.25rem'
-  },
-  totalReviews: {
-    fontSize: '0.85rem',
-    color: '#6b6b6b'
-  },
-  reviewsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  reviewCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '10px',
-    padding: '1.25rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  reviewHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  reviewerName: {
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    color: '#1a1a1a'
-  },
-  reviewDate: {
-    fontSize: '0.8rem',
-    color: '#6b6b6b'
-  },
-  reviewStars: {
-    display: 'flex',
-    gap: '0.1rem'
-  },
-  reviewComment: {
-    fontSize: '0.9rem',
-    color: '#6b6b6b',
-    lineHeight: '1.6'
-  },
-  sellerCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  sellerCardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  sellerAvatar: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    backgroundColor: '#1a1a1a',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.3rem',
-    fontFamily: 'Playfair Display, serif'
-  },
-  sellerCardName: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: '0.25rem'
-  },
-  sellerCardMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  sellerDescription: {
-    fontSize: '0.9rem',
-    color: '#6b6b6b',
-    lineHeight: '1.6'
-  }
+  container: { minHeight: '100vh', backgroundColor: '#faf7f4', fontFamily: 'Inter, sans-serif' },
+  centerScreen: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', fontFamily: 'Inter, sans-serif' },
+  loadingText: { color: '#6b6b6b', fontSize: '1rem' },
+  errorText: { color: '#e74c3c', fontSize: '1rem' },
+  backBtn: { padding: '0.75rem 1.5rem', backgroundColor: '#1a1a1a', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer' },
+  navbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 2rem', backgroundColor: '#ffffff', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 100 },
+  backButton: { background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', color: '#6b6b6b' },
+  navLogo: { fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', fontWeight: '700', letterSpacing: '0.2em', color: '#1a1a1a' },
+  cartButton: { padding: '0.5rem 1.2rem', backgroundColor: '#1a1a1a', color: '#ffffff', border: 'none', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer' },
+  productLayout: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', padding: '2rem', maxWidth: '1100px', margin: '0 auto' },
+  imageSection: { position: 'relative' },
+  mainImage: { width: '100%', paddingTop: '120%', borderRadius: '12px', position: 'relative' },
+  imageText: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '5rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'Playfair Display, serif' },
+  categoryBadge: { position: 'absolute', bottom: '15px', left: '15px', color: '#ffffff', padding: '0.3rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', textTransform: 'capitalize' },
+  infoSection: { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
+  sellerRow: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  sellerName: { fontSize: '0.9rem', color: '#6b6b6b' },
+  verifiedBadge: { backgroundColor: '#e8f5e9', color: '#27ae60', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' },
+  sellerRating: { fontSize: '0.85rem', color: '#c9647a' },
+  productName: { fontFamily: 'Playfair Display, serif', fontSize: '2rem', color: '#1a1a1a', lineHeight: '1.2' },
+  priceRow: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  price: { fontSize: '1.6rem', fontWeight: '700', color: '#1a1a1a' },
+  originalPrice: { fontSize: '1.1rem', color: '#6b6b6b', textDecoration: 'line-through' },
+  ratingRow: { display: 'flex', alignItems: 'center', gap: '0.25rem' },
+  ratingText: { fontSize: '0.85rem', color: '#6b6b6b', marginLeft: '0.5rem' },
+  selectionSection: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  selectionLabel: { fontSize: '0.9rem', color: '#6b6b6b', fontWeight: '500' },
+  selectionValue: { color: '#1a1a1a', fontWeight: '600' },
+  colourOptions: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' },
+  colourButton: { padding: '0.5rem 1rem', border: '1.5px solid', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif' },
+  sizeOptions: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' },
+  sizeButton: { width: '48px', height: '48px', border: '1.5px solid', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: '500' },
+  addToCartButton: { padding: '1rem', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: '600', width: '100%', marginTop: '0.5rem' },
+  selectionHint: { fontSize: '0.8rem', color: '#6b6b6b', textAlign: 'center' },
+  tabsSection: { maxWidth: '1100px', margin: '0 auto', padding: '0 2rem 3rem' },
+  tabHeaders: { display: 'flex', borderBottom: '1px solid #e0e0e0', marginBottom: '2rem' },
+  tabButton: { padding: '1rem 1.5rem', background: 'none', border: 'none', borderBottom: '2px solid transparent', fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', color: '#1a1a1a' },
+  tabContent: { padding: '0.5rem 0' },
+  description: { fontSize: '0.95rem', color: '#6b6b6b', lineHeight: '1.8', marginBottom: '1.5rem' },
+  detailsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' },
+  detailItem: { display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '1rem', backgroundColor: '#ffffff', borderRadius: '8px' },
+  detailLabel: { fontSize: '0.8rem', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  detailValue: { fontSize: '0.95rem', color: '#1a1a1a', fontWeight: '500', textTransform: 'capitalize' },
+  reviewsSummary: { display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', padding: '1.5rem', backgroundColor: '#ffffff', borderRadius: '12px' },
+  bigRating: { fontSize: '3rem', fontWeight: '700', color: '#1a1a1a', fontFamily: 'Playfair Display, serif' },
+  starsRow: { display: 'flex', gap: '0.1rem', marginBottom: '0.25rem' },
+  totalReviews: { fontSize: '0.85rem', color: '#6b6b6b' },
+  reviewsList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  noReviews: { color: '#6b6b6b', fontSize: '0.9rem', textAlign: 'center', padding: '2rem' },
+  reviewCard: { backgroundColor: '#ffffff', borderRadius: '10px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
+  reviewHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  reviewerName: { fontWeight: '600', fontSize: '0.9rem', color: '#1a1a1a' },
+  reviewDate: { fontSize: '0.8rem', color: '#6b6b6b' },
+  reviewStars: { display: 'flex', gap: '0.1rem' },
+  reviewComment: { fontSize: '0.9rem', color: '#6b6b6b', lineHeight: '1.6' },
+  sellerCard: { backgroundColor: '#ffffff', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' },
+  sellerCardHeader: { display: 'flex', alignItems: 'center', gap: '1rem' },
+  sellerAvatar: { width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#1a1a1a', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontFamily: 'Playfair Display, serif' },
+  sellerCardName: { fontSize: '1.1rem', fontWeight: '600', color: '#1a1a1a', marginBottom: '0.25rem' },
+  sellerCardMeta: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  sellerDescription: { fontSize: '0.9rem', color: '#6b6b6b', lineHeight: '1.6' }
 }
 
 export default BuyerProduct
