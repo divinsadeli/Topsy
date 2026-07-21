@@ -7,6 +7,7 @@ import BuyerProduct from './pages/buyer/BuyerProduct'
 import BuyerCart from './pages/buyer/BuyerCart'
 import SellerDashboard from './pages/seller/SellerDashboard'
 import SellerInventory from './pages/seller/SellerInventory'
+import AdminDashboard from './pages/admin/AdminDashboard'
 import LoadingScreen from './components/LoadingScreen'
 
 function App() {
@@ -66,6 +67,10 @@ function App() {
         <Route
           path="/seller/inventory"
           element={user && userRole === 'seller' ? <SellerInventory user={user} /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/admin"
+          element={user ? <AdminDashboard user={user} /> : <Navigate to="/" />}
         />
         <Route path="/callback" element={<Navigate to="/" />} />
         <Route path="*" element={<Navigate to="/" />} />
